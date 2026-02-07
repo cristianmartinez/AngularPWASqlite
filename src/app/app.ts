@@ -1,6 +1,7 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
+import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatCardModule } from '@angular/material/card';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -11,17 +12,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { SqliteService, type StorageBackend } from './services/sqlite.service';
-
-interface TodoItem {
-  id: number;
-  title: string;
-  done: number;
-  priority: number;
-  created_at: string;
-}
-
-const PRIORITY_LABELS = ['Low', 'Medium', 'High'] as const;
+import { TodoService, PRIORITY_LABELS } from './services/todo.service';
+import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-root',
@@ -38,12 +32,16 @@ const PRIORITY_LABELS = ['Low', 'Medium', 'High'] as const;
     MatCheckboxModule,
     MatChipsModule,
     MatDividerModule,
+    MatSnackBarModule,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App implements OnInit, OnDestroy {
   private sqlite = inject(SqliteService);
+  private todoService = inject(TodoService);
+  private swUpdate = inject(SwUpdate);
+  private snackBar = inject(MatSnackBar);
 
   readonly dbReady = this.sqlite.ready;
   readonly dbError = this.sqlite.error;
@@ -51,7 +49,7 @@ export class App implements OnInit, OnDestroy {
   readonly preferredBackend = this.sqlite.preferredBackend;
   readonly activeBackend = this.sqlite.activeBackend;
   readonly availableBackends = this.sqlite.availableBackends;
-  readonly todos = signal<TodoItem[]>([]);
+  readonly todos = this.todoService.todos;
   readonly newTodoTitle = signal('');
   readonly newTodoPriority = signal(0);
   readonly priorityLabels = PRIORITY_LABELS;
@@ -59,8 +57,10 @@ export class App implements OnInit, OnDestroy {
   readonly persistenceGranted = signal<boolean | null>(null);
 
   async ngOnInit(): Promise<void> {
+    this.listenForPwaUpdates();
     await this.sqlite.initialize();
-    this.loadTodos();
+    this.showMigrationNotification();
+    this.todoService.load();
     await this.updateStorageInfo();
   }
 
@@ -69,32 +69,17 @@ export class App implements OnInit, OnDestroy {
   }
 
   async addTodo(): Promise<void> {
-    const title = this.newTodoTitle().trim();
-    if (!title) return;
-
-    this.sqlite.exec(
-      'INSERT INTO todos (title, done, priority) VALUES (:title, 0, :priority)',
-      { ':title': title, ':priority': this.newTodoPriority() }
-    );
-    await this.sqlite.save();
+    await this.todoService.add(this.newTodoTitle(), this.newTodoPriority());
     this.newTodoTitle.set('');
     this.newTodoPriority.set(0);
-    this.loadTodos();
   }
 
   async toggleTodo(id: number): Promise<void> {
-    this.sqlite.exec(
-      'UPDATE todos SET done = CASE WHEN done = 0 THEN 1 ELSE 0 END WHERE id = :id',
-      { ':id': id }
-    );
-    await this.sqlite.save();
-    this.loadTodos();
+    await this.todoService.toggle(id);
   }
 
   async deleteTodo(id: number): Promise<void> {
-    this.sqlite.exec('DELETE FROM todos WHERE id = :id', { ':id': id });
-    await this.sqlite.save();
-    this.loadTodos();
+    await this.todoService.delete(id);
   }
 
   async onBackendChange(value: StorageBackend): Promise<void> {
@@ -110,11 +95,34 @@ export class App implements OnInit, OnDestroy {
     await this.updateStorageInfo();
   }
 
-  private loadTodos(): void {
-    const results = this.sqlite.query<TodoItem>(
-      'SELECT * FROM todos ORDER BY created_at DESC'
+  private listenForPwaUpdates(): void {
+    if (!this.swUpdate.isEnabled) return;
+
+    this.swUpdate.versionUpdates
+      .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
+      .subscribe(() => {
+        const ref = this.snackBar.open(
+          'A new version is available',
+          'Reload',
+          { duration: 0 }
+        );
+        ref.onAction().subscribe(() => document.location.reload());
+      });
+  }
+
+  private showMigrationNotification(): void {
+    const result = this.sqlite.migrationResult();
+    if (!result || result.applied.length === 0) return;
+
+    const descriptions = result.applied
+      .map((m) => `v${m.version}: ${m.description}`)
+      .join(', ');
+
+    this.snackBar.open(
+      `Database updated (v${result.fromVersion} → v${result.toVersion}): ${descriptions}`,
+      'OK',
+      { duration: 8000 }
     );
-    this.todos.set(results);
   }
 
   private async updateStorageInfo(): Promise<void> {

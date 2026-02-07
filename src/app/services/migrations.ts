@@ -35,12 +35,20 @@ export function getDbVersion(db: SqlJsDatabase): number {
   return (result[0]?.values[0]?.[0] as number) ?? 0;
 }
 
-export function runMigrations(db: SqlJsDatabase): void {
-  const currentVersion = getDbVersion(db);
+export interface MigrationResult {
+  fromVersion: number;
+  toVersion: number;
+  applied: Pick<Migration, 'version' | 'description'>[];
+}
+
+export function runMigrations(db: SqlJsDatabase): MigrationResult {
+  const fromVersion = getDbVersion(db);
 
   const pending = MIGRATIONS
-    .filter((m) => m.version > currentVersion)
+    .filter((m) => m.version > fromVersion)
     .sort((a, b) => a.version - b.version);
+
+  const applied: Pick<Migration, 'version' | 'description'>[] = [];
 
   for (const migration of pending) {
     try {
@@ -48,6 +56,7 @@ export function runMigrations(db: SqlJsDatabase): void {
       migration.up(db);
       db.run(`PRAGMA user_version = ${migration.version}`);
       db.run('COMMIT');
+      applied.push({ version: migration.version, description: migration.description });
       console.log(`[migration] v${migration.version}: ${migration.description}`);
     } catch (err) {
       db.run('ROLLBACK');
@@ -56,4 +65,10 @@ export function runMigrations(db: SqlJsDatabase): void {
       );
     }
   }
+
+  return {
+    fromVersion,
+    toVersion: getDbVersion(db),
+    applied,
+  };
 }

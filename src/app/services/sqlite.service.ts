@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { runMigrations, getDbVersion } from './migrations';
+import { runMigrations, getDbVersion, type MigrationResult } from './migrations';
 
 type SqlJsDatabase = import('sql.js').Database;
 
@@ -20,6 +20,7 @@ export class SqliteService {
   readonly preferredBackend = signal<StorageBackend>('auto');
   readonly activeBackend = signal<ActiveBackend>('memory');
   readonly availableBackends = signal<ActiveBackend[]>(['memory']);
+  readonly migrationResult = signal<MigrationResult | null>(null);
 
   async initialize(): Promise<void> {
     try {
@@ -46,7 +47,10 @@ export class SqliteService {
       const snapshot = this.db.export();
 
       try {
-        runMigrations(this.db);
+        const result = runMigrations(this.db);
+        if (result.applied.length > 0) {
+          this.migrationResult.set(result);
+        }
         this.dbVersion.set(getDbVersion(this.db));
         await this.saveToStorage(this.db.export());
       } catch (err) {
