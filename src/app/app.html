@@ -1,134 +1,143 @@
-<mat-toolbar color="primary">
+<mat-toolbar color="primary" class="gap-2">
   <mat-icon>storage</mat-icon>
-  <span class="toolbar-title">PWA SQLite</span>
-  <span class="toolbar-spacer"></span>
-  <span class="toolbar-chip">v{{ dbVersion() }}</span>
-  <span class="toolbar-chip" [class.active]="activeBackend() !== 'memory'">
+  <span class="font-medium">PWA SQLite</span>
+  <span class="flex-1"></span>
+  <span class="text-xs px-2 py-0.5 rounded-full bg-white/10">v{{ dbVersion() }}</span>
+  <span
+    class="text-xs px-2 py-0.5 rounded-full"
+    [class]="activeBackend() !== 'memory' ? 'bg-sky-500/20 text-sky-300' : 'bg-white/10'"
+  >
     {{ activeBackend() | uppercase }}
   </span>
 </mat-toolbar>
 
-<div class="container">
-  <!-- Status Card -->
-  <mat-card class="status-card" appearance="outlined">
-    <mat-card-content>
-      <div class="status-row">
-        <mat-form-field appearance="outline" class="backend-field">
-          <mat-label>Storage backend</mat-label>
-          <mat-select
-            [ngModel]="preferredBackend()"
-            (ngModelChange)="onBackendChange($event)"
-          >
-            <mat-option value="auto">Auto</mat-option>
-            @for (b of availableBackends(); track b) {
-              <mat-option [value]="b">{{ b | uppercase }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+<div class="max-w-2xl mx-auto p-4 flex flex-col gap-4">
 
-        @if (storageEstimate(); as est) {
-          <span class="status-info">{{ est.usage }} / {{ est.quota }}</span>
-        }
+  <!-- Status -->
+  <mat-card appearance="outlined" class="!p-4">
+    <div class="flex items-center gap-4 flex-wrap">
+      <mat-form-field appearance="outline" class="!w-40" subscriptSizing="dynamic">
+        <mat-label>Backend</mat-label>
+        <mat-select
+          [ngModel]="preferredBackend()"
+          (ngModelChange)="onBackendChange($event)"
+        >
+          <mat-option value="auto">Auto</mat-option>
+          @for (b of availableBackends(); track b) {
+            <mat-option [value]="b">{{ b | uppercase }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
 
-        @if (persistenceGranted() === false) {
-          <button mat-stroked-button (click)="requestPersistence()" class="persist-btn">
-            <mat-icon>lock</mat-icon>
-            Protect from eviction
-          </button>
-        }
-        @if (persistenceGranted() === true) {
-          <span class="status-info protected">
-            <mat-icon>verified</mat-icon> Protected
-          </span>
-        }
-      </div>
-    </mat-card-content>
+      @if (storageEstimate(); as est) {
+        <span class="text-xs text-[var(--mat-sys-on-surface-variant)]">
+          {{ est.usage }} / {{ est.quota }}
+        </span>
+      }
+
+      @if (persistenceGranted() === false) {
+        <button mat-stroked-button (click)="requestPersistence()" class="!text-xs">
+          <mat-icon class="!text-base !w-4 !h-4 mr-1">lock</mat-icon>
+          Protect from eviction
+        </button>
+      }
+      @if (persistenceGranted() === true) {
+        <span class="text-xs text-[var(--mat-sys-primary)] flex items-center gap-1">
+          <mat-icon class="!text-base !w-4 !h-4">verified</mat-icon>
+          Protected
+        </span>
+      }
+    </div>
   </mat-card>
 
   @if (dbError()) {
-    <mat-card class="error-card" appearance="outlined">
-      <mat-card-content>
+    <mat-card appearance="outlined" class="!bg-[var(--mat-sys-error-container)] !text-[var(--mat-sys-on-error-container)] !p-4">
+      <div class="flex items-center gap-2">
         <mat-icon>error</mat-icon>
         {{ dbError() }}
-      </mat-card-content>
+      </div>
     </mat-card>
   }
 
   @if (dbReady()) {
     <!-- Add Todo -->
-    <mat-card appearance="outlined">
-      <mat-card-content>
-        <form (ngSubmit)="addTodo()" class="todo-form">
-          <mat-form-field appearance="outline" class="todo-input">
-            <mat-label>New todo</mat-label>
-            <input
-              matInput
-              [ngModel]="newTodoTitle()"
-              (ngModelChange)="newTodoTitle.set($event)"
-              name="title"
-              placeholder="What needs to be done?"
-            />
-          </mat-form-field>
+    <mat-card appearance="outlined" class="!p-4">
+      <form (ngSubmit)="addTodo()" class="flex items-start gap-3">
+        <mat-form-field appearance="outline" class="flex-1" subscriptSizing="dynamic">
+          <mat-label>New todo</mat-label>
+          <input
+            matInput
+            [ngModel]="newTodoTitle()"
+            (ngModelChange)="newTodoTitle.set($event)"
+            name="title"
+            placeholder="What needs to be done?"
+          />
+        </mat-form-field>
 
-          <mat-form-field appearance="outline" class="priority-field">
-            <mat-label>Priority</mat-label>
-            <mat-select
-              [ngModel]="newTodoPriority()"
-              (ngModelChange)="newTodoPriority.set(+$event)"
-              name="priority"
-            >
-              @for (label of priorityLabels; track $index) {
-                <mat-option [value]="$index">{{ label }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+        <mat-form-field appearance="outline" class="!w-28" subscriptSizing="dynamic">
+          <mat-label>Priority</mat-label>
+          <mat-select
+            [ngModel]="newTodoPriority()"
+            (ngModelChange)="newTodoPriority.set(+$event)"
+            name="priority"
+          >
+            @for (label of priorityLabels; track $index) {
+              <mat-option [value]="$index">{{ label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
 
-          <button mat-fab type="submit" color="primary">
-            <mat-icon>add</mat-icon>
-          </button>
-        </form>
-      </mat-card-content>
+        <button mat-fab type="submit" color="primary" class="shrink-0">
+          <mat-icon>add</mat-icon>
+        </button>
+      </form>
     </mat-card>
 
     <!-- Todo List -->
-    <mat-card appearance="outlined" class="list-card">
+    <mat-card appearance="outlined" class="!p-0 overflow-hidden">
       <mat-list>
         @for (todo of todos(); track todo.id) {
-          <mat-list-item [class.done]="todo.done">
+          <mat-list-item class="!h-auto !py-2">
             <mat-checkbox
               matListItemIcon
               [checked]="!!todo.done"
               (change)="toggleTodo(todo.id)"
             />
-            <span matListItemTitle [class.done-text]="todo.done">
-              {{ todo.title }}
-            </span>
-            <span matListItemLine class="todo-meta">
-              <mat-chip-set>
+            <div matListItemTitle class="flex items-center gap-2">
+              <span [class]="todo.done ? 'line-through text-[var(--mat-sys-on-surface-variant)]' : ''">
+                {{ todo.title }}
+              </span>
+              <mat-chip-set class="inline-flex">
                 <mat-chip
                   [highlighted]="todo.priority > 0"
-                  [class]="'priority-' + todo.priority"
+                  [class]="todo.priority === 2
+                    ? '!bg-[var(--mat-sys-error-container)] !text-[var(--mat-sys-on-error-container)]'
+                    : todo.priority === 1
+                      ? '!bg-[var(--mat-sys-tertiary-container)] !text-[var(--mat-sys-on-tertiary-container)]'
+                      : ''"
+                  class="!text-xs"
                 >
                   {{ priorityLabels[todo.priority] }}
                 </mat-chip>
               </mat-chip-set>
-              <span class="todo-date">{{ todo.created_at }}</span>
+            </div>
+            <span matListItemLine class="!text-xs text-[var(--mat-sys-on-surface-variant)]">
+              {{ todo.created_at }}
             </span>
-            <button mat-icon-button matListItemMeta (click)="deleteTodo(todo.id)">
+            <button mat-icon-button matListItemMeta (click)="deleteTodo(todo.id)" class="!text-[var(--mat-sys-error)]">
               <mat-icon>delete</mat-icon>
             </button>
           </mat-list-item>
         } @empty {
-          <mat-list-item>
-            <mat-icon matListItemIcon>inbox</mat-icon>
-            <span matListItemTitle>No todos yet</span>
-            <span matListItemLine>Add one above to get started</span>
-          </mat-list-item>
+          <div class="flex flex-col items-center gap-2 py-12 text-[var(--mat-sys-on-surface-variant)]">
+            <mat-icon class="!text-5xl !w-12 !h-12 opacity-40">inbox</mat-icon>
+            <span class="text-sm">No todos yet. Add one above!</span>
+          </div>
         }
       </mat-list>
-      <mat-card-footer class="list-footer">
+      <div class="px-4 py-3 text-center text-xs text-[var(--mat-sys-on-surface-variant)] border-t border-[var(--mat-sys-outline-variant)]">
         {{ todos().length }} item(s)
-      </mat-card-footer>
+      </div>
     </mat-card>
   }
 </div>
