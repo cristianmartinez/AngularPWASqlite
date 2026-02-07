@@ -1,0 +1,65 @@
+<div class="app-container">
+  <header>
+    <h1>Angular PWA + SQLite</h1>
+    <div class="status-bar">
+      <span class="badge" [class.active]="dbReady()">
+        DB: {{ dbReady() ? 'Ready' : 'Loading...' }}
+      </span>
+      <span class="badge">
+        Storage: {{ persistenceMode() | uppercase }}
+      </span>
+      <span class="badge" [class.granted]="storagePermission() === 'granted'">
+        Persistence: {{ storagePermission() }}
+      </span>
+    </div>
+  </header>
+
+  @if (dbError()) {
+    <div class="error">{{ dbError() }}</div>
+  }
+
+  @if (storagePermission() !== 'granted') {
+    <div class="permission-prompt">
+      <p>Enable persistent storage to keep your data across sessions?</p>
+      <button (click)="requestPersistence()">Grant Persistent Storage</button>
+    </div>
+  }
+
+  @if (dbReady()) {
+    <section class="todo-section">
+      <form (ngSubmit)="addTodo()" class="todo-form">
+        <input
+          type="text"
+          placeholder="Add a new todo..."
+          [ngModel]="newTodoTitle()"
+          (ngModelChange)="newTodoTitle.set($event)"
+          name="title"
+        />
+        <button type="submit">Add</button>
+      </form>
+
+      <ul class="todo-list">
+        @for (todo of todos(); track todo.id) {
+          <li [class.done]="todo.done">
+            <label>
+              <input
+                type="checkbox"
+                [checked]="todo.done"
+                (change)="toggleTodo(todo.id)"
+              />
+              <span class="todo-title">{{ todo.title }}</span>
+            </label>
+            <span class="todo-date">{{ todo.created_at }}</span>
+            <button class="delete-btn" (click)="deleteTodo(todo.id)">Delete</button>
+          </li>
+        } @empty {
+          <li class="empty">No todos yet. Add one above!</li>
+        }
+      </ul>
+
+      <footer class="todo-footer">
+        <span>{{ todos().length }} item(s) total</span>
+      </footer>
+    </section>
+  }
+</div>
