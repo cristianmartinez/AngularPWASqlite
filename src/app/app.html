@@ -95,47 +95,49 @@
 
     <!-- Todo List -->
     <mat-card appearance="outlined" class="!p-0 overflow-hidden">
-      <mat-list>
-        @for (todo of todos(); track todo.id) {
-          <mat-list-item class="!h-auto !py-2">
-            <mat-checkbox
-              matListItemIcon
-              [checked]="!!todo.done"
-              (change)="toggleTodo(todo.id)"
-            />
-            <div matListItemTitle class="flex items-center gap-2">
-              <span [class]="todo.done ? 'line-through text-[var(--mat-sys-on-surface-variant)]' : ''">
+      @for (todo of todos(); track todo.id; let last = $last) {
+        <div class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
+          <mat-checkbox
+            [checked]="!!todo.done"
+            (change)="toggleTodo(todo.id)"
+          />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span
+                class="text-sm"
+                [class]="todo.done ? 'line-through text-[var(--mat-sys-on-surface-variant)]' : ''"
+              >
                 {{ todo.title }}
               </span>
-              <mat-chip-set class="inline-flex">
-                <mat-chip
-                  [highlighted]="todo.priority > 0"
-                  [class]="todo.priority === 2
-                    ? '!bg-[var(--mat-sys-error-container)] !text-[var(--mat-sys-on-error-container)]'
-                    : todo.priority === 1
-                      ? '!bg-[var(--mat-sys-tertiary-container)] !text-[var(--mat-sys-on-tertiary-container)]'
-                      : ''"
-                  class="!text-xs"
-                >
-                  {{ priorityLabels[todo.priority] }}
-                </mat-chip>
-              </mat-chip-set>
+              <span
+                class="text-[0.65rem] font-medium px-2 py-0.5 rounded-full"
+                [class]="todo.priority === 2
+                  ? 'bg-[var(--mat-sys-error-container)] text-[var(--mat-sys-on-error-container)]'
+                  : todo.priority === 1
+                    ? 'bg-[var(--mat-sys-tertiary-container)] text-[var(--mat-sys-on-tertiary-container)]'
+                    : 'bg-white/[0.06] text-[var(--mat-sys-on-surface-variant)]'"
+              >
+                {{ priorityLabels[todo.priority] }}
+              </span>
             </div>
-            <span matListItemLine class="!text-xs text-[var(--mat-sys-on-surface-variant)]">
+            <span class="text-[0.7rem] text-[var(--mat-sys-on-surface-variant)] mt-0.5 block">
               {{ todo.created_at }}
             </span>
-            <button mat-icon-button matListItemMeta (click)="deleteTodo(todo.id)" class="!text-[var(--mat-sys-error)]">
-              <mat-icon>delete</mat-icon>
-            </button>
-          </mat-list-item>
-        } @empty {
-          <div class="flex flex-col items-center gap-2 py-12 text-[var(--mat-sys-on-surface-variant)]">
-            <mat-icon class="!text-5xl !w-12 !h-12 opacity-40">inbox</mat-icon>
-            <span class="text-sm">No todos yet. Add one above!</span>
           </div>
+          <button mat-icon-button (click)="deleteTodo(todo.id)" class="shrink-0 !text-[var(--mat-sys-error)] opacity-50 hover:opacity-100">
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+        @if (!last) {
+          <mat-divider />
         }
-      </mat-list>
-      <div class="px-4 py-3 text-center text-xs text-[var(--mat-sys-on-surface-variant)] border-t border-[var(--mat-sys-outline-variant)]">
+      } @empty {
+        <div class="flex flex-col items-center gap-3 py-16 text-[var(--mat-sys-on-surface-variant)]">
+          <mat-icon class="!text-5xl !w-12 !h-12 opacity-30">checklist</mat-icon>
+          <span class="text-sm opacity-60">No todos yet. Add one above!</span>
+        </div>
+      }
+      <div class="px-4 py-2.5 text-center text-xs text-[var(--mat-sys-on-surface-variant)] border-t border-[var(--mat-sys-outline-variant)]">
         {{ todos().length }} item(s)
       </div>
     </mat-card>

@@ -10,8 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatChipsModule } from '@angular/material/chips';
-import { MatListModule } from '@angular/material/list';
-import { MatBadgeModule } from '@angular/material/badge';
+import { MatDividerModule } from '@angular/material/divider';
 import { SqliteService, type StorageBackend } from './services/sqlite.service';
 
 interface TodoItem {
@@ -38,8 +37,7 @@ const PRIORITY_LABELS = ['Low', 'Medium', 'High'] as const;
     MatIconModule,
     MatCheckboxModule,
     MatChipsModule,
-    MatListModule,
-    MatBadgeModule,
+    MatDividerModule,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
