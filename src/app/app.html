@@ -2,6 +2,15 @@
   <mat-icon>storage</mat-icon>
   <span class="font-medium">PWA SQLite</span>
   <span class="flex-1"></span>
+  @if (bulkAddProgress() !== null) {
+    <span class="text-xs opacity-70">
+      {{ bulkAddProgress() | number }} / 10,000
+    </span>
+  } @else {
+    <button mat-icon-button (click)="bulkAddTodos()" class="!w-8 !h-8" aria-label="Add 10k todos">
+      <mat-icon class="!text-lg !w-5 !h-5">science</mat-icon>
+    </button>
+  }
   @if (updateAvailable() && updateDismissed()) {
     <button mat-icon-button (click)="showUpdate()" class="!w-8 !h-8" aria-label="Show update">
       <mat-icon class="!text-lg !w-5 !h-5 text-amber-300">system_update</mat-icon>
@@ -120,7 +129,7 @@
 
     <!-- Todo List -->
     <mat-card appearance="outlined" class="!p-0 overflow-hidden">
-      @for (todo of todos(); track todo.id; let last = $last) {
+      @for (todo of paginatedTodos(); track todo.id; let last = $last) {
         <div class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-white/[0.03]">
           <mat-checkbox
             [checked]="!!todo.done"
@@ -162,8 +171,45 @@
           <span class="text-sm opacity-60">No todos yet. Add one above!</span>
         </div>
       }
-      <div class="px-4 py-2.5 text-center text-xs text-[var(--mat-sys-on-surface-variant)] border-t border-[var(--mat-sys-outline-variant)]">
-        {{ todos().length }} item(s)
+      <div class="px-4 py-2 flex items-center justify-between text-xs text-[var(--mat-sys-on-surface-variant)] border-t border-[var(--mat-sys-outline-variant)]">
+        <span>{{ todos().length | number }} item(s)</span>
+        @if (totalPages() > 1) {
+          <div class="flex items-center gap-1">
+            <button
+              mat-icon-button
+              [disabled]="currentPage() === 1"
+              (click)="goToPage(1)"
+              class="!w-7 !h-7"
+            >
+              <mat-icon class="!text-base !w-4 !h-4">first_page</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              [disabled]="currentPage() === 1"
+              (click)="goToPage(currentPage() - 1)"
+              class="!w-7 !h-7"
+            >
+              <mat-icon class="!text-base !w-4 !h-4">chevron_left</mat-icon>
+            </button>
+            <span class="px-2">{{ currentPage() }} / {{ totalPages() }}</span>
+            <button
+              mat-icon-button
+              [disabled]="currentPage() === totalPages()"
+              (click)="goToPage(currentPage() + 1)"
+              class="!w-7 !h-7"
+            >
+              <mat-icon class="!text-base !w-4 !h-4">chevron_right</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              [disabled]="currentPage() === totalPages()"
+              (click)="goToPage(totalPages())"
+              class="!w-7 !h-7"
+            >
+              <mat-icon class="!text-base !w-4 !h-4">last_page</mat-icon>
+            </button>
+          </div>
+        }
       </div>
     </mat-card>
   }

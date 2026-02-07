@@ -50,4 +50,28 @@ export class TodoService {
     await this.sqlite.save();
     this.load();
   }
+
+  async bulkAdd(
+    count: number,
+    batchSize: number,
+    onProgress?: (done: number) => void
+  ): Promise<void> {
+    for (let i = 0; i < count; i += batchSize) {
+      const batch = Math.min(batchSize, count - i);
+      this.sqlite.exec('BEGIN TRANSACTION');
+      for (let j = 0; j < batch; j++) {
+        const num = i + j + 1;
+        const priority = num % 3;
+        this.sqlite.exec(
+          'INSERT INTO todos (title, done, priority) VALUES (:title, 0, :priority)',
+          { ':title': `Test todo #${num}`, ':priority': priority }
+        );
+      }
+      this.sqlite.exec('COMMIT');
+      onProgress?.(i + batch);
+      await new Promise((r) => setTimeout(r, 0)); // yield to UI
+    }
+    await this.sqlite.save();
+    this.load();
+  }
 }

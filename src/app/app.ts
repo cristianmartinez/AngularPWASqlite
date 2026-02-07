@@ -1,6 +1,6 @@
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { UpperCasePipe, DatePipe } from '@angular/common';
+import { UpperCasePipe, DatePipe, DecimalPipe } from '@angular/common';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatCardModule } from '@angular/material/card';
@@ -24,6 +24,7 @@ import { filter } from 'rxjs';
     FormsModule,
     UpperCasePipe,
     DatePipe,
+    DecimalPipe,
     MatToolbarModule,
     MatCardModule,
     MatFormFieldModule,
@@ -62,6 +63,14 @@ export class App implements OnInit, OnDestroy {
   readonly updateAvailable = signal(false);
   readonly updateDismissed = signal(false);
   readonly newAppHash = signal<string | null>(null);
+  readonly bulkAddProgress = signal<number | null>(null);
+  readonly currentPage = signal(1);
+  readonly pageSize = signal(20);
+  readonly totalPages = computed(() => Math.ceil(this.todos().length / this.pageSize()) || 1);
+  readonly paginatedTodos = computed(() => {
+    const start = (this.currentPage() - 1) * this.pageSize();
+    return this.todos().slice(start, start + this.pageSize());
+  });
 
   async ngOnInit(): Promise<void> {
     this.listenForPwaUpdates();
@@ -87,6 +96,20 @@ export class App implements OnInit, OnDestroy {
 
   async deleteTodo(id: number): Promise<void> {
     await this.todoService.delete(id);
+  }
+
+  async bulkAddTodos(): Promise<void> {
+    this.bulkAddProgress.set(0);
+    await this.todoService.bulkAdd(10000, 500, (done) => this.bulkAddProgress.set(done));
+    this.bulkAddProgress.set(null);
+    this.currentPage.set(1);
+    await this.updateStorageInfo();
+  }
+
+  goToPage(page: number): void {
+    if (page >= 1 && page <= this.totalPages()) {
+      this.currentPage.set(page);
+    }
   }
 
   async onBackendChange(value: StorageBackend): Promise<void> {
