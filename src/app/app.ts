@@ -21,6 +21,7 @@ export class App implements OnInit, OnDestroy {
 
   readonly dbReady = this.sqlite.ready;
   readonly dbError = this.sqlite.error;
+  readonly dbVersion = this.sqlite.dbVersion;
   readonly persistenceMode = this.sqlite.persistenceMode;
   readonly todos = signal<TodoItem[]>([]);
   readonly newTodoTitle = signal('');
@@ -29,7 +30,6 @@ export class App implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     await this.sqlite.initialize();
-    this.createSchema();
     this.loadTodos();
     await this.updateStorageInfo();
   }
@@ -72,17 +72,6 @@ export class App implements OnInit, OnDestroy {
       this.persistenceGranted.set(granted);
     }
     await this.updateStorageInfo();
-  }
-
-  private createSchema(): void {
-    this.sqlite.exec(`
-      CREATE TABLE IF NOT EXISTS todos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        done INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT (datetime('now'))
-      )
-    `);
   }
 
   private loadTodos(): void {

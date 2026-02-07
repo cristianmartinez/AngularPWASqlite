@@ -3,7 +3,7 @@
     <h1>Angular PWA + SQLite</h1>
     <div class="status-bar">
       <span class="badge" [class.active]="dbReady()">
-        DB: {{ dbReady() ? 'Ready' : 'Loading...' }}
+        DB: {{ dbReady() ? 'v' + dbVersion() : 'Loading...' }}
       </span>
       <span class="badge" [class.active]="persistenceMode() !== 'memory'">
         Storage: {{ persistenceMode() | uppercase }}

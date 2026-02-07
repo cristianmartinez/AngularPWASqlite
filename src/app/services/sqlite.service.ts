@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { runMigrations, getDbVersion } from './migrations';
 
 type SqlJsDatabase = import('sql.js').Database;
 
@@ -9,6 +10,7 @@ export class SqliteService {
   private db: SqlJsDatabase | null = null;
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
+  readonly dbVersion = signal(0);
   readonly persistenceMode = signal<'opfs' | 'indexeddb' | 'memory'>('memory');
 
   async initialize(): Promise<void> {
@@ -20,6 +22,23 @@ export class SqliteService {
 
       const savedData = await this.loadFromStorage();
       this.db = savedData ? new SQL.Database(savedData) : new SQL.Database();
+
+      // Snapshot before migrations for rollback safety
+      const snapshot = this.db.export();
+
+      try {
+        runMigrations(this.db);
+        this.dbVersion.set(getDbVersion(this.db));
+        await this.saveToStorage(this.db.export());
+      } catch (err) {
+        console.error('Migration failed, restoring snapshot:', err);
+        this.db.close();
+        this.db = new SQL.Database(snapshot);
+        this.dbVersion.set(getDbVersion(this.db));
+        this.error.set(
+          `Migration failed: ${err instanceof Error ? err.message : err}`
+        );
+      }
 
       this.ready.set(true);
     } catch (err) {
