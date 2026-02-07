@@ -21,6 +21,13 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    description: 'Add priority column to todos',
+    up: (db) => {
+      db.run('ALTER TABLE todos ADD COLUMN priority INTEGER DEFAULT 0');
+    },
+  },
 ];
 
 export function getDbVersion(db: SqlJsDatabase): number {

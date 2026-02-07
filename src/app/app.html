@@ -5,8 +5,19 @@
       <span class="badge" [class.active]="dbReady()">
         DB: {{ dbReady() ? 'v' + dbVersion() : 'Loading...' }}
       </span>
-      <span class="badge" [class.active]="persistenceMode() !== 'memory'">
-        Storage: {{ persistenceMode() | uppercase }}
+      <select
+        class="backend-select"
+        [ngModel]="preferredBackend()"
+        (ngModelChange)="onBackendChange($event)"
+        name="backend"
+      >
+        <option value="auto">Auto</option>
+        @for (b of availableBackends(); track b) {
+          <option [value]="b">{{ b | uppercase }}</option>
+        }
+      </select>
+      <span class="badge" [class.active]="activeBackend() !== 'memory'">
+        Active: {{ activeBackend() | uppercase }}
       </span>
       @if (storageEstimate(); as est) {
         <span class="badge">
@@ -30,7 +41,7 @@
   @if (persistenceGranted() === false) {
     <div class="permission-prompt">
       <p>
-        Your data is saved via <strong>{{ persistenceMode() | uppercase }}</strong> and will persist across refreshes.
+        Your data is saved via <strong>{{ activeBackend() | uppercase }}</strong> and will persist across refreshes.
         However, the browser may evict it under storage pressure.
         Request eviction protection to prevent that.
       </p>
@@ -52,6 +63,15 @@
           (ngModelChange)="newTodoTitle.set($event)"
           name="title"
         />
+        <select
+          [ngModel]="newTodoPriority()"
+          (ngModelChange)="newTodoPriority.set(+$event)"
+          name="priority"
+        >
+          @for (label of priorityLabels; track $index) {
+            <option [value]="$index">{{ label }}</option>
+          }
+        </select>
         <button type="submit">Add</button>
       </form>
 
@@ -66,6 +86,9 @@
               />
               <span class="todo-title">{{ todo.title }}</span>
             </label>
+            <span class="priority-badge" [attr.data-priority]="todo.priority">
+              {{ priorityLabels[todo.priority] }}
+            </span>
             <span class="todo-date">{{ todo.created_at }}</span>
             <button class="delete-btn" (click)="deleteTodo(todo.id)">Delete</button>
           </li>

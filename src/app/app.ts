@@ -1,14 +1,17 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
-import { SqliteService } from './services/sqlite.service';
+import { SqliteService, type StorageBackend } from './services/sqlite.service';
 
 interface TodoItem {
   id: number;
   title: string;
   done: number;
+  priority: number;
   created_at: string;
 }
+
+const PRIORITY_LABELS = ['Low', 'Medium', 'High'] as const;
 
 @Component({
   selector: 'app-root',
@@ -22,9 +25,13 @@ export class App implements OnInit, OnDestroy {
   readonly dbReady = this.sqlite.ready;
   readonly dbError = this.sqlite.error;
   readonly dbVersion = this.sqlite.dbVersion;
-  readonly persistenceMode = this.sqlite.persistenceMode;
+  readonly preferredBackend = this.sqlite.preferredBackend;
+  readonly activeBackend = this.sqlite.activeBackend;
+  readonly availableBackends = this.sqlite.availableBackends;
   readonly todos = signal<TodoItem[]>([]);
   readonly newTodoTitle = signal('');
+  readonly newTodoPriority = signal(0);
+  readonly priorityLabels = PRIORITY_LABELS;
   readonly storageEstimate = signal<{ usage: string; quota: string } | null>(null);
   readonly persistenceGranted = signal<boolean | null>(null);
 
@@ -43,11 +50,12 @@ export class App implements OnInit, OnDestroy {
     if (!title) return;
 
     this.sqlite.exec(
-      'INSERT INTO todos (title, done) VALUES (:title, 0)',
-      { ':title': title }
+      'INSERT INTO todos (title, done, priority) VALUES (:title, 0, :priority)',
+      { ':title': title, ':priority': this.newTodoPriority() }
     );
     await this.sqlite.save();
     this.newTodoTitle.set('');
+    this.newTodoPriority.set(0);
     this.loadTodos();
   }
 
@@ -64,6 +72,11 @@ export class App implements OnInit, OnDestroy {
     this.sqlite.exec('DELETE FROM todos WHERE id = :id', { ':id': id });
     await this.sqlite.save();
     this.loadTodos();
+  }
+
+  async onBackendChange(value: StorageBackend): Promise<void> {
+    await this.sqlite.switchBackend(value);
+    await this.updateStorageInfo();
   }
 
   async requestPersistence(): Promise<void> {

@@ -3,7 +3,11 @@ import { runMigrations, getDbVersion } from './migrations';
 
 type SqlJsDatabase = import('sql.js').Database;
 
+export type StorageBackend = 'auto' | 'opfs' | 'indexeddb' | 'memory';
+export type ActiveBackend = 'opfs' | 'indexeddb' | 'memory';
+
 const DB_NAME = 'app.db';
+const PREF_KEY = 'sqlite-preferred-backend';
 
 @Injectable({ providedIn: 'root' })
 export class SqliteService {
@@ -11,10 +15,22 @@ export class SqliteService {
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
   readonly dbVersion = signal(0);
-  readonly persistenceMode = signal<'opfs' | 'indexeddb' | 'memory'>('memory');
+  readonly preferredBackend = signal<StorageBackend>('auto');
+  readonly activeBackend = signal<ActiveBackend>('memory');
+  readonly availableBackends = signal<ActiveBackend[]>(['memory']);
 
   async initialize(): Promise<void> {
     try {
+      // Detect available backends
+      const backends: ActiveBackend[] = ['memory'];
+      if (typeof indexedDB !== 'undefined') backends.unshift('indexeddb');
+      if (await this.isOpfsAvailable()) backends.unshift('opfs');
+      this.availableBackends.set(backends);
+
+      // Load saved preference
+      const saved = localStorage.getItem(PREF_KEY) as StorageBackend | null;
+      if (saved) this.preferredBackend.set(saved);
+
       const initSqlJs = (await import('sql.js')).default;
       const SQL = await initSqlJs({
         locateFile: () => '/sql-wasm.wasm',
@@ -46,6 +62,17 @@ export class SqliteService {
       this.error.set(message);
       throw err;
     }
+  }
+
+  async switchBackend(target: StorageBackend): Promise<void> {
+    this.ensureReady();
+    const data = this.db!.export();
+
+    this.preferredBackend.set(target);
+    localStorage.setItem(PREF_KEY, target);
+
+    // Save to the new target
+    await this.saveToStorage(data);
   }
 
   exec(sql: string, params?: Record<string, unknown>): void {
@@ -89,65 +116,110 @@ export class SqliteService {
     }
   }
 
+  private resolveBackend(): ActiveBackend | 'auto' {
+    return this.preferredBackend();
+  }
+
+  // --- Load ---
+
   private async loadFromStorage(): Promise<Uint8Array | null> {
-    // Try OPFS first (best for PWA - true filesystem access)
-    if (await this.isOpfsAvailable()) {
-      try {
-        const root = await navigator.storage.getDirectory();
-        const fileHandle = await root.getFileHandle(DB_NAME);
-        const file = await fileHandle.getFile();
-        const buffer = await file.arrayBuffer();
-        if (buffer.byteLength > 0) {
-          this.persistenceMode.set('opfs');
-          return new Uint8Array(buffer);
-        }
-      } catch {
-        // File doesn't exist yet in OPFS, fall through
-      }
+    const pref = this.resolveBackend();
+
+    if (pref !== 'auto') {
+      return this.loadFromSpecific(pref);
     }
 
-    // Fallback to IndexedDB
-    try {
-      const data = await this.idbGet(DB_NAME);
-      if (data) {
-        this.persistenceMode.set('indexeddb');
-        return data;
-      }
-    } catch {
-      // IndexedDB not available
-    }
+    // Auto: try OPFS -> IndexedDB -> memory
+    const fromOpfs = await this.loadFromSpecific('opfs');
+    if (fromOpfs) return fromOpfs;
 
-    this.persistenceMode.set('memory');
+    const fromIdb = await this.loadFromSpecific('indexeddb');
+    if (fromIdb) return fromIdb;
+
+    this.activeBackend.set('memory');
     return null;
   }
 
+  private async loadFromSpecific(backend: ActiveBackend): Promise<Uint8Array | null> {
+    switch (backend) {
+      case 'opfs':
+        if (!(await this.isOpfsAvailable())) return null;
+        try {
+          const root = await navigator.storage.getDirectory();
+          const fileHandle = await root.getFileHandle(DB_NAME);
+          const file = await fileHandle.getFile();
+          const buffer = await file.arrayBuffer();
+          if (buffer.byteLength > 0) {
+            this.activeBackend.set('opfs');
+            return new Uint8Array(buffer);
+          }
+        } catch {
+          // File doesn't exist yet
+        }
+        return null;
+
+      case 'indexeddb':
+        try {
+          const data = await this.idbGet(DB_NAME);
+          if (data) {
+            this.activeBackend.set('indexeddb');
+            return data;
+          }
+        } catch {
+          // IndexedDB not available
+        }
+        return null;
+
+      case 'memory':
+        this.activeBackend.set('memory');
+        return null;
+    }
+  }
+
+  // --- Save ---
+
   private async saveToStorage(data: Uint8Array): Promise<void> {
-    // Request persistent storage permission
-    if (navigator.storage?.persist) {
-      await navigator.storage.persist();
+    const pref = this.resolveBackend();
+
+    if (pref !== 'auto') {
+      await this.saveToSpecific(pref, data);
+      return;
     }
 
-    // Try OPFS first
-    if (await this.isOpfsAvailable()) {
-      try {
-        const root = await navigator.storage.getDirectory();
-        const fileHandle = await root.getFileHandle(DB_NAME, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(data.buffer as ArrayBuffer);
-        await writable.close();
-        this.persistenceMode.set('opfs');
-        return;
-      } catch {
-        // OPFS write failed, fall through to IndexedDB
-      }
-    }
+    // Auto: try OPFS -> IndexedDB -> memory
+    if (await this.saveToSpecific('opfs', data)) return;
+    if (await this.saveToSpecific('indexeddb', data)) return;
+    this.activeBackend.set('memory');
+  }
 
-    // Fallback to IndexedDB
-    try {
-      await this.idbSet(DB_NAME, data);
-      this.persistenceMode.set('indexeddb');
-    } catch {
-      this.persistenceMode.set('memory');
+  private async saveToSpecific(backend: ActiveBackend, data: Uint8Array): Promise<boolean> {
+    switch (backend) {
+      case 'opfs':
+        if (!(await this.isOpfsAvailable())) return false;
+        try {
+          const root = await navigator.storage.getDirectory();
+          const fileHandle = await root.getFileHandle(DB_NAME, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(data.buffer as ArrayBuffer);
+          await writable.close();
+          this.activeBackend.set('opfs');
+          return true;
+        } catch {
+          return false;
+        }
+
+      case 'indexeddb':
+        try {
+          await this.idbSet(DB_NAME, data);
+          this.activeBackend.set('indexeddb');
+          return true;
+        } catch {
+          return false;
+        }
+
+      case 'memory':
+        this.activeBackend.set('memory');
+        return true;
     }
   }
 
@@ -159,7 +231,8 @@ export class SqliteService {
     }
   }
 
-  // Simple IndexedDB key-value helpers
+  // --- IndexedDB helpers ---
+
   private idbOpen(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open('sqlite-storage', 1);
