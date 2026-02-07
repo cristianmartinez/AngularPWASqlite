@@ -55,6 +55,8 @@ export class App implements OnInit, OnDestroy {
   readonly priorityLabels = PRIORITY_LABELS;
   readonly storageEstimate = signal<{ usage: string; quota: string } | null>(null);
   readonly persistenceGranted = signal<boolean | null>(null);
+  readonly updateAvailable = signal(false);
+  readonly updateDismissed = signal(false);
 
   async ngOnInit(): Promise<void> {
     this.listenForPwaUpdates();
@@ -95,18 +97,25 @@ export class App implements OnInit, OnDestroy {
     await this.updateStorageInfo();
   }
 
+  applyUpdate(): void {
+    document.location.reload();
+  }
+
+  dismissUpdate(): void {
+    this.updateDismissed.set(true);
+  }
+
+  showUpdate(): void {
+    this.updateDismissed.set(false);
+  }
+
   private listenForPwaUpdates(): void {
     if (!this.swUpdate.isEnabled) return;
 
     this.swUpdate.versionUpdates
       .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
       .subscribe(() => {
-        const ref = this.snackBar.open(
-          'A new version is available',
-          'Reload',
-          { duration: 0 }
-        );
-        ref.onAction().subscribe(() => document.location.reload());
+        this.updateAvailable.set(true);
       });
   }
 
