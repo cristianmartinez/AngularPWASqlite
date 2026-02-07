@@ -1,105 +1,134 @@
-<div class="app-container">
-  <header>
-    <h1>Angular PWA + SQLite</h1>
-    <div class="status-bar">
-      <span class="badge" [class.active]="dbReady()">
-        DB: {{ dbReady() ? 'v' + dbVersion() : 'Loading...' }}
-      </span>
-      <select
-        class="backend-select"
-        [ngModel]="preferredBackend()"
-        (ngModelChange)="onBackendChange($event)"
-        name="backend"
-      >
-        <option value="auto">Auto</option>
-        @for (b of availableBackends(); track b) {
-          <option [value]="b">{{ b | uppercase }}</option>
+<mat-toolbar color="primary">
+  <mat-icon>storage</mat-icon>
+  <span class="toolbar-title">PWA SQLite</span>
+  <span class="toolbar-spacer"></span>
+  <span class="toolbar-chip">v{{ dbVersion() }}</span>
+  <span class="toolbar-chip" [class.active]="activeBackend() !== 'memory'">
+    {{ activeBackend() | uppercase }}
+  </span>
+</mat-toolbar>
+
+<div class="container">
+  <!-- Status Card -->
+  <mat-card class="status-card" appearance="outlined">
+    <mat-card-content>
+      <div class="status-row">
+        <mat-form-field appearance="outline" class="backend-field">
+          <mat-label>Storage backend</mat-label>
+          <mat-select
+            [ngModel]="preferredBackend()"
+            (ngModelChange)="onBackendChange($event)"
+          >
+            <mat-option value="auto">Auto</mat-option>
+            @for (b of availableBackends(); track b) {
+              <mat-option [value]="b">{{ b | uppercase }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        @if (storageEstimate(); as est) {
+          <span class="status-info">{{ est.usage }} / {{ est.quota }}</span>
         }
-      </select>
-      <span class="badge" [class.active]="activeBackend() !== 'memory'">
-        Active: {{ activeBackend() | uppercase }}
-      </span>
-      @if (storageEstimate(); as est) {
-        <span class="badge">
-          {{ est.usage }} / {{ est.quota }}
-        </span>
-      }
-      <span
-        class="badge"
-        [class.active]="persistenceGranted() === true"
-        [class.warn]="persistenceGranted() === false"
-      >
-        Eviction protection: {{ persistenceGranted() === null ? '...' : persistenceGranted() ? 'ON' : 'OFF' }}
-      </span>
-    </div>
-  </header>
+
+        @if (persistenceGranted() === false) {
+          <button mat-stroked-button (click)="requestPersistence()" class="persist-btn">
+            <mat-icon>lock</mat-icon>
+            Protect from eviction
+          </button>
+        }
+        @if (persistenceGranted() === true) {
+          <span class="status-info protected">
+            <mat-icon>verified</mat-icon> Protected
+          </span>
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
 
   @if (dbError()) {
-    <div class="error">{{ dbError() }}</div>
-  }
-
-  @if (persistenceGranted() === false) {
-    <div class="permission-prompt">
-      <p>
-        Your data is saved via <strong>{{ activeBackend() | uppercase }}</strong> and will persist across refreshes.
-        However, the browser may evict it under storage pressure.
-        Request eviction protection to prevent that.
-      </p>
-      <p class="hint">
-        Note: On localhost, browsers often deny this automatically.
-        Deploy to HTTPS or install as a PWA for full support.
-      </p>
-      <button (click)="requestPersistence()">Request Eviction Protection</button>
-    </div>
+    <mat-card class="error-card" appearance="outlined">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        {{ dbError() }}
+      </mat-card-content>
+    </mat-card>
   }
 
   @if (dbReady()) {
-    <section class="todo-section">
-      <form (ngSubmit)="addTodo()" class="todo-form">
-        <input
-          type="text"
-          placeholder="Add a new todo..."
-          [ngModel]="newTodoTitle()"
-          (ngModelChange)="newTodoTitle.set($event)"
-          name="title"
-        />
-        <select
-          [ngModel]="newTodoPriority()"
-          (ngModelChange)="newTodoPriority.set(+$event)"
-          name="priority"
-        >
-          @for (label of priorityLabels; track $index) {
-            <option [value]="$index">{{ label }}</option>
-          }
-        </select>
-        <button type="submit">Add</button>
-      </form>
+    <!-- Add Todo -->
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <form (ngSubmit)="addTodo()" class="todo-form">
+          <mat-form-field appearance="outline" class="todo-input">
+            <mat-label>New todo</mat-label>
+            <input
+              matInput
+              [ngModel]="newTodoTitle()"
+              (ngModelChange)="newTodoTitle.set($event)"
+              name="title"
+              placeholder="What needs to be done?"
+            />
+          </mat-form-field>
 
-      <ul class="todo-list">
+          <mat-form-field appearance="outline" class="priority-field">
+            <mat-label>Priority</mat-label>
+            <mat-select
+              [ngModel]="newTodoPriority()"
+              (ngModelChange)="newTodoPriority.set(+$event)"
+              name="priority"
+            >
+              @for (label of priorityLabels; track $index) {
+                <mat-option [value]="$index">{{ label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <button mat-fab type="submit" color="primary">
+            <mat-icon>add</mat-icon>
+          </button>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Todo List -->
+    <mat-card appearance="outlined" class="list-card">
+      <mat-list>
         @for (todo of todos(); track todo.id) {
-          <li [class.done]="todo.done">
-            <label>
-              <input
-                type="checkbox"
-                [checked]="todo.done"
-                (change)="toggleTodo(todo.id)"
-              />
-              <span class="todo-title">{{ todo.title }}</span>
-            </label>
-            <span class="priority-badge" [attr.data-priority]="todo.priority">
-              {{ priorityLabels[todo.priority] }}
+          <mat-list-item [class.done]="todo.done">
+            <mat-checkbox
+              matListItemIcon
+              [checked]="!!todo.done"
+              (change)="toggleTodo(todo.id)"
+            />
+            <span matListItemTitle [class.done-text]="todo.done">
+              {{ todo.title }}
             </span>
-            <span class="todo-date">{{ todo.created_at }}</span>
-            <button class="delete-btn" (click)="deleteTodo(todo.id)">Delete</button>
-          </li>
+            <span matListItemLine class="todo-meta">
+              <mat-chip-set>
+                <mat-chip
+                  [highlighted]="todo.priority > 0"
+                  [class]="'priority-' + todo.priority"
+                >
+                  {{ priorityLabels[todo.priority] }}
+                </mat-chip>
+              </mat-chip-set>
+              <span class="todo-date">{{ todo.created_at }}</span>
+            </span>
+            <button mat-icon-button matListItemMeta (click)="deleteTodo(todo.id)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-list-item>
         } @empty {
-          <li class="empty">No todos yet. Add one above!</li>
+          <mat-list-item>
+            <mat-icon matListItemIcon>inbox</mat-icon>
+            <span matListItemTitle>No todos yet</span>
+            <span matListItemLine>Add one above to get started</span>
+          </mat-list-item>
         }
-      </ul>
-
-      <footer class="todo-footer">
-        <span>{{ todos().length }} item(s) total</span>
-      </footer>
-    </section>
+      </mat-list>
+      <mat-card-footer class="list-footer">
+        {{ todos().length }} item(s)
+      </mat-card-footer>
+    </mat-card>
   }
 </div>

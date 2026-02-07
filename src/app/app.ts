@@ -1,6 +1,17 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UpperCasePipe } from '@angular/common';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatCardModule } from '@angular/material/card';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatListModule } from '@angular/material/list';
+import { MatBadgeModule } from '@angular/material/badge';
 import { SqliteService, type StorageBackend } from './services/sqlite.service';
 
 interface TodoItem {
@@ -15,7 +26,21 @@ const PRIORITY_LABELS = ['Low', 'Medium', 'High'] as const;
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule, UpperCasePipe],
+  imports: [
+    FormsModule,
+    UpperCasePipe,
+    MatToolbarModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatSelectModule,
+    MatButtonModule,
+    MatIconModule,
+    MatCheckboxModule,
+    MatChipsModule,
+    MatListModule,
+    MatBadgeModule,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
