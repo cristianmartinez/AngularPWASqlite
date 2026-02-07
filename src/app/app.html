@@ -20,7 +20,12 @@
   <div class="bg-[var(--mat-sys-primary-container)] text-[var(--mat-sys-on-primary-container)]">
     <div class="max-w-2xl mx-auto px-4 py-2.5 flex items-center gap-3">
       <mat-icon class="!text-lg !w-5 !h-5 shrink-0">system_update</mat-icon>
-      <span class="text-sm flex-1">A new version is available</span>
+      <span class="text-sm flex-1">
+        A new version is available
+        @if (newAppHash()) {
+          <span class="opacity-60">({{ newAppHash() }})</span>
+        }
+      </span>
       <button mat-button (click)="dismissUpdate()" class="!text-xs">Later</button>
       <button mat-flat-button (click)="applyUpdate()" class="!text-xs">Update now</button>
     </div>
@@ -63,6 +68,10 @@
           Protected
         </span>
       }
+
+      <span class="text-xs text-[var(--mat-sys-on-surface-variant)]">
+        v{{ appVersion }} &middot; {{ buildTime | date:'short' }}
+      </span>
     </div>
   </mat-card>
 

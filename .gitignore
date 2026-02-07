@@ -2,6 +2,7 @@
 
 # Compiled output
 /dist
+src/app/build-info.ts
 /tmp
 /out-tsc
 /bazel-out

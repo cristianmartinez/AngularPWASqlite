@@ -1,8 +1,10 @@
 {
   "name": "app",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "scripts": {
     "ng": "ng",
+    "prebuild": "bun scripts/generate-build-info.ts",
+    "prestart": "bun scripts/generate-build-info.ts",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",

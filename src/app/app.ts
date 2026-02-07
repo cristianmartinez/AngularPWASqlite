@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { UpperCasePipe } from '@angular/common';
+import { UpperCasePipe, DatePipe } from '@angular/common';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatCardModule } from '@angular/material/card';
@@ -15,6 +15,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatSnackBarModule, MatSnackBar } from '@angular/material/snack-bar';
 import { SqliteService, type StorageBackend } from './services/sqlite.service';
 import { TodoService, PRIORITY_LABELS } from './services/todo.service';
+import { BUILD_INFO } from './build-info';
 import { filter } from 'rxjs';
 
 @Component({
@@ -22,6 +23,7 @@ import { filter } from 'rxjs';
   imports: [
     FormsModule,
     UpperCasePipe,
+    DatePipe,
     MatToolbarModule,
     MatCardModule,
     MatFormFieldModule,
@@ -55,8 +57,11 @@ export class App implements OnInit, OnDestroy {
   readonly priorityLabels = PRIORITY_LABELS;
   readonly storageEstimate = signal<{ usage: string; quota: string } | null>(null);
   readonly persistenceGranted = signal<boolean | null>(null);
+  readonly appVersion = BUILD_INFO.version;
+  readonly buildTime = BUILD_INFO.buildTime;
   readonly updateAvailable = signal(false);
   readonly updateDismissed = signal(false);
+  readonly newAppHash = signal<string | null>(null);
 
   async ngOnInit(): Promise<void> {
     this.listenForPwaUpdates();
@@ -114,7 +119,8 @@ export class App implements OnInit, OnDestroy {
 
     this.swUpdate.versionUpdates
       .pipe(filter((e): e is VersionReadyEvent => e.type === 'VERSION_READY'))
-      .subscribe(() => {
+      .subscribe((e) => {
+        this.newAppHash.set(e.latestVersion.hash.slice(0, 8));
         this.updateAvailable.set(true);
       });
   }
