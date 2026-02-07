@@ -33,9 +33,9 @@ header {
     color: #22c55e;
   }
 
-  &.granted {
-    border-color: #22c55e;
-    color: #22c55e;
+  &.warn {
+    border-color: #eab308;
+    color: #eab308;
   }
 }
 
@@ -60,6 +60,12 @@ header {
     margin-bottom: 0.75rem;
     font-size: 0.875rem;
     color: #94a3b8;
+
+    &.hint {
+      font-size: 0.75rem;
+      color: #64748b;
+      font-style: italic;
+    }
   }
 
   button {

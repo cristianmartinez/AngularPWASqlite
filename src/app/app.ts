@@ -24,13 +24,14 @@ export class App implements OnInit, OnDestroy {
   readonly persistenceMode = this.sqlite.persistenceMode;
   readonly todos = signal<TodoItem[]>([]);
   readonly newTodoTitle = signal('');
-  readonly storagePermission = signal<'granted' | 'prompt' | 'denied' | 'unknown'>('unknown');
+  readonly storageEstimate = signal<{ usage: string; quota: string } | null>(null);
+  readonly persistenceGranted = signal<boolean | null>(null);
 
   async ngOnInit(): Promise<void> {
-    await this.checkStoragePermission();
     await this.sqlite.initialize();
     this.createSchema();
     this.loadTodos();
+    await this.updateStorageInfo();
   }
 
   async ngOnDestroy(): Promise<void> {
@@ -68,8 +69,9 @@ export class App implements OnInit, OnDestroy {
   async requestPersistence(): Promise<void> {
     if (navigator.storage?.persist) {
       const granted = await navigator.storage.persist();
-      this.storagePermission.set(granted ? 'granted' : 'denied');
+      this.persistenceGranted.set(granted);
     }
+    await this.updateStorageInfo();
   }
 
   private createSchema(): void {
@@ -90,10 +92,23 @@ export class App implements OnInit, OnDestroy {
     this.todos.set(results);
   }
 
-  private async checkStoragePermission(): Promise<void> {
+  private async updateStorageInfo(): Promise<void> {
     if (navigator.storage?.persisted) {
-      const persisted = await navigator.storage.persisted();
-      this.storagePermission.set(persisted ? 'granted' : 'prompt');
+      this.persistenceGranted.set(await navigator.storage.persisted());
     }
+    if (navigator.storage?.estimate) {
+      const est = await navigator.storage.estimate();
+      this.storageEstimate.set({
+        usage: this.formatBytes(est.usage ?? 0),
+        quota: this.formatBytes(est.quota ?? 0),
+      });
+    }
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
   }
 }

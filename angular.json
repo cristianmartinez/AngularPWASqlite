@@ -2,7 +2,8 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "bun"
+    "packageManager": "bun",
+    "analytics": "404f5427-f45f-4bed-9ed7-b7458d23f14a"
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -65,6 +66,11 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "prebundle": {
+              "exclude": ["sql.js"]
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "app:build:production"

@@ -5,11 +5,20 @@
       <span class="badge" [class.active]="dbReady()">
         DB: {{ dbReady() ? 'Ready' : 'Loading...' }}
       </span>
-      <span class="badge">
+      <span class="badge" [class.active]="persistenceMode() !== 'memory'">
         Storage: {{ persistenceMode() | uppercase }}
       </span>
-      <span class="badge" [class.granted]="storagePermission() === 'granted'">
-        Persistence: {{ storagePermission() }}
+      @if (storageEstimate(); as est) {
+        <span class="badge">
+          {{ est.usage }} / {{ est.quota }}
+        </span>
+      }
+      <span
+        class="badge"
+        [class.active]="persistenceGranted() === true"
+        [class.warn]="persistenceGranted() === false"
+      >
+        Eviction protection: {{ persistenceGranted() === null ? '...' : persistenceGranted() ? 'ON' : 'OFF' }}
       </span>
     </div>
   </header>
@@ -18,10 +27,18 @@
     <div class="error">{{ dbError() }}</div>
   }
 
-  @if (storagePermission() !== 'granted') {
+  @if (persistenceGranted() === false) {
     <div class="permission-prompt">
-      <p>Enable persistent storage to keep your data across sessions?</p>
-      <button (click)="requestPersistence()">Grant Persistent Storage</button>
+      <p>
+        Your data is saved via <strong>{{ persistenceMode() | uppercase }}</strong> and will persist across refreshes.
+        However, the browser may evict it under storage pressure.
+        Request eviction protection to prevent that.
+      </p>
+      <p class="hint">
+        Note: On localhost, browsers often deny this automatically.
+        Deploy to HTTPS or install as a PWA for full support.
+      </p>
+      <button (click)="requestPersistence()">Request Eviction Protection</button>
     </div>
   }
 

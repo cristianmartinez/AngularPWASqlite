@@ -1,17 +1,19 @@
 import { Injectable, signal } from '@angular/core';
-import initSqlJs, { type Database } from 'sql.js';
+
+type SqlJsDatabase = import('sql.js').Database;
 
 const DB_NAME = 'app.db';
 
 @Injectable({ providedIn: 'root' })
 export class SqliteService {
-  private db: Database | null = null;
+  private db: SqlJsDatabase | null = null;
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
   readonly persistenceMode = signal<'opfs' | 'indexeddb' | 'memory'>('memory');
 
   async initialize(): Promise<void> {
     try {
+      const initSqlJs = (await import('sql.js')).default;
       const SQL = await initSqlJs({
         locateFile: () => '/sql-wasm.wasm',
       });
