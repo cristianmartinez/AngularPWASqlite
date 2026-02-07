@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { runMigrations, getDbVersion } from './migrations';
 
 type SqlJsDatabase = import('sql.js').Database;
@@ -11,6 +12,7 @@ const PREF_KEY = 'sqlite-preferred-backend';
 
 @Injectable({ providedIn: 'root' })
 export class SqliteService {
+  private document = inject(DOCUMENT);
   private db: SqlJsDatabase | null = null;
   readonly ready = signal(false);
   readonly error = signal<string | null>(null);
@@ -31,9 +33,10 @@ export class SqliteService {
       const saved = localStorage.getItem(PREF_KEY) as StorageBackend | null;
       if (saved) this.preferredBackend.set(saved);
 
+      const baseHref = this.document.querySelector('base')?.getAttribute('href') ?? '/';
       const initSqlJs = (await import('sql.js')).default;
       const SQL = await initSqlJs({
-        locateFile: () => '/sql-wasm.wasm',
+        locateFile: () => `${baseHref}sql-wasm.wasm`,
       });
 
       const savedData = await this.loadFromStorage();
